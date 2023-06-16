@@ -1,0 +1,158 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <zlib.h>
+
+// Function to compress a file using zlib
+bool compressFile(const std::string& inputFile, const std::string& outputFile) {
+    std::ifstream inFile(inputFile, std::ios::binary);
+    if (!inFile) {
+        std::cerr << "Unable to open input file: " << inputFile << std::endl;
+        return false;
+    }
+
+    std::ofstream outFile(outputFile, std::ios::binary);
+    if (!outFile) {
+        std::cerr << "Unable to open output file: " << outputFile << std::endl;
+        return false;
+    }
+
+    // Initialize zlib stream
+    z_stream stream;
+    stream.zalloc = Z_NULL;
+    stream.zfree = Z_NULL;
+    stream.opaque = Z_NULL;
+
+    if (deflateInit(&stream, Z_DEFAULT_COMPRESSION) != Z_OK) {
+        std::cerr << "Failed to initialize zlib for compression." << std::endl;
+        return false;
+    }
+
+    // Read input file and compress data
+    const int bufferSize = 1024;
+    char buffer[bufferSize];
+
+    do {
+        inFile.read(buffer, bufferSize);
+        stream.avail_in = inFile.gcount();
+        stream.next_in = reinterpret_cast<Bytef*>(buffer);
+
+        do {
+            char outBuffer[bufferSize];
+
+            stream.avail_out = bufferSize;
+            stream.next_out = reinterpret_cast<Bytef*>(outBuffer);
+
+            deflate(&stream, Z_FINISH);
+
+            outFile.write(outBuffer, bufferSize - stream.avail_out);
+        } while (stream.avail_out == 0);
+    } while (inFile);
+
+    deflateEnd(&stream);
+
+    inFile.close();
+    outFile.close();
+
+    return true;
+}
+
+// Function to decompress a file using zlib
+bool decompressFile(const std::string& inputFile, const std::string& outputFile) {
+    std::ifstream inFile(inputFile, std::ios::binary);
+    if (!inFile) {
+        std::cerr << "Unable to open input file: " << inputFile << std::endl;
+        return false;
+    }
+
+    std::ofstream outFile(outputFile, std::ios::binary);
+    if (!outFile) {
+        std::cerr << "Unable to open output file: " << outputFile << std::endl;
+        return false;
+    }
+
+    // Initialize zlib stream
+    z_stream stream;
+    stream.zalloc = Z_NULL;
+    stream.zfree = Z_NULL;
+    stream.opaque = Z_NULL;
+
+    if (inflateInit(&stream) != Z_OK) {
+        std::cerr << "Failed to initialize zlib for decompression." << std::endl;
+        return false;
+    }
+
+    // Read input file and decompress data
+    const int bufferSize = 1024;
+    char buffer[bufferSize];
+
+    do {
+        inFile.read(buffer, bufferSize);
+        stream.avail_in = inFile.gcount();
+        stream.next_in = reinterpret_cast<Bytef*>(buffer);
+
+        do {
+            char outBuffer[bufferSize];
+
+            stream.avail_out = bufferSize;
+            stream.next_out = reinterpret_cast<Bytef*>(outBuffer);
+
+            inflate(&stream, Z_NO_FLUSH);
+
+            outFile.write(outBuffer, bufferSize - stream.avail_out);
+        } while (stream.avail_out == 0);
+    } while (inFile);
+
+    inflateEnd(&stream);
+
+    inFile.close();
+    outFile.close();
+
+    return true;
+}
+
+int main() {
+    std::cout << "File Compression and Decompression Utility\n";
+
+    int choice;
+    std::string inputFile, outputFile;
+
+    while (true) {
+        std::cout << "\n1. Compress a file\n";
+        std::cout << "2. Decompress a file\n";
+        std::cout << "3. Exit\n";
+        std::cout << "Enter your choice: ";
+        std::cin >> choice;
+
+        if (choice == 1) {
+            std::cout << "Enter the name of the input file: ";
+            std::cin >> inputFile;
+            std::cout << "Enter the name of the output file: ";
+            std::cin >> outputFile;
+
+            if (compressFile(inputFile, outputFile)) {
+                std::cout << "File compressed successfully.\n";
+            } else {
+                std::cerr << "Failed to compress the file.\n";
+            }
+        } else if (choice == 2) {
+            std::cout << "Enter the name of the input file: ";
+            std::cin >> inputFile;
+            std::cout << "Enter the name of the output file: ";
+            std::cin >> outputFile;
+
+            if (decompressFile(inputFile, outputFile)) {
+                std::cout << "File decompressed successfully.\n";
+            } else {
+                std::cerr << "Failed to decompress the file.\n";
+            }
+        } else if (choice == 3) {
+            break;
+        } else {
+            std::cout << "Invalid choice. Please try again.\n";
+        }
+    }
+
+    return 0;
+}
