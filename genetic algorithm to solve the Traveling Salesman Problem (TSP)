@@ -1,0 +1,294 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <random>
+
+// Structure to represent a city
+struct City {
+    int x, y;
+
+    City(int x, int y) : x(x), y(y) {}
+};
+
+// Function to calculate the Euclidean distance between two cities
+double distance(const City& city1, const City& city2) {
+    int dx = city1.x - city2.x;
+    int dy = city1.y - city2.y;
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+// Class to represent a candidate solution (a tour)
+class Tour {
+private:
+    std::vector<int> cities; // Indices of cities in the tour
+    double fitness;
+
+public:
+    // Construct a random tour
+    Tour(int numCities) {
+        cities.resize(numCities);
+        for (int i = 0; i < numCities; ++i) {
+            cities[i] = i;
+        }
+        std::random_shuffle(cities.begin(), cities.end());
+        fitness = 0.0;
+    }
+
+    // Calculate the fitness of the tour
+    void calculateFitness(const std::vector<City>& cityList) {
+        double totalDistance = 0.0;
+        for (int i = 0; i < cities.size() - 1; ++i) {
+            totalDistance += distance(cityList[cities[i]], cityList[cities[i + 1]]);
+        }
+        totalDistance += distance(cityList[cities[cities.size() - 1]], cityList[cities[0]]);
+        fitness = 1.0 / totalDistance;
+    }
+
+    // Get the fitness of the tour
+    double getFitness() const {
+        return fitness;
+    }
+
+    // Get the number of cities in the tour
+    int size() const {
+        return cities.size();
+    }
+
+    // Get the city at a specific position in the tour
+    int getCity(int position) const {
+        return cities[position];
+    }
+
+    // Swap two cities in the tour
+    void swapCities(int cityIndex1, int cityIndex2) {
+        std::swap(cities[cityIndex1], cities[cityIndex2]);
+    }
+};
+
+// Class to represent the population of tours
+class Population {
+private:
+    std::vector<Tour> tours;
+
+public:
+    // Construct a population with random tours
+    Population(int populationSize, int numCities) {
+        tours.reserve(populationSize);
+        for (int i = 0; i < populationSize; ++i) {
+            tours.emplace_back(numCities);
+        }
+    }
+
+    // Calculate the fitness of each tour in the population
+    void calculateFitness(const std::vector<City>& cityList) {
+        for (Tour& tour : tours) {
+            tour.calculateFitness(cityList);
+        }
+    }
+
+    // Get the tour with the highest fitness in the population
+    const Tour& getFittestTour() const {
+        return *std::max_element(tours.begin(), tours.end(), [](const Tour& tour1, const Tour& tour2) {
+            return tour1.getFitness() < tour2.getFitness();
+        });
+    }
+
+    // Get the size of the population
+    int size() const {
+        return tours.size();
+    }
+
+    // Get a tour at a specific position in the population
+    Tour& getTour(int position) {
+        return tours[position];
+    }
+};
+
+// Class to represent the genetic algorithm
+class GeneticAlgorithm {
+private:
+    double mutationRate;
+    int tournamentSize;
+    bool elitism;
+
+public:
+    GeneticAlgorithm(double mutationRate, int tournamentSize, bool elitism)
+        : mutationRate(mutationRate), tournamentSize(tournamentSize), elitism(elitism) {}
+
+    // Perform tournament selection to choose a parent tour
+    Tour& tournamentSelection(Population& population) {
+        Population tournament(tournamentSize, population.size());
+
+        // Randomly select individuals for the tournament
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(0, population.size() - 1);
+
+        for (int i = 0; i < tournamentSize; ++i) {
+            int index = dist(gen);
+            tournament.getTour(i) = population.getTour(index);
+        }
+
+        // Return the fittest tour from the tournament
+        return tournament.getFittestTour();
+    }
+
+    // Apply crossover operation to create offspring tour
+    Tour crossover(const Tour& parent1, const Tour& parent2) {
+        int tourSize = parent1.size();
+        Tour child(tourSize);
+
+        // Randomly select a subset of cities from parent1
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(0, tourSize - 1);
+
+        int startPos = dist(gen);
+        int endPos = dist(gen);
+
+        if (startPos > endPos) {
+            std::swap(startPos, endPos);
+        }
+
+        // Add the selected subset of cities to the child tour
+        for (int i = startPos; i <= endPos; ++i) {
+            child.getCity(i) = parent1.getCity(i);
+        }
+
+        // Fill the remaining cities in the child tour from parent2
+        int childIndex = 0;
+        for (int i = 0; i < tourSize; ++i) {
+            if (childIndex == startPos) {
+                childIndex = endPos + 1;
+            }
+
+            int city = parent2.getCity(i);
+
+            // Skip cities already present in the child tour
+            if (!child.getCity(city)) {
+                child.getCity(childIndex) = city;
+                ++childIndex;
+            }
+        }
+
+        return child;
+    }
+
+    // Apply mutation operation to a tour
+    void mutate(Tour& tour) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+
+        for (int i = 0; i < tour.size(); ++i) {
+            if (dist(gen) < mutationRate) {
+                int swapIndex = static_cast<int>(dist(gen) * tour.size());
+                tour.swapCities(i, swapIndex);
+            }
+        }
+    }
+
+    // Evolve the population for a certain number of generations
+    void evolvePopulation(Population& population) {
+        Population newPopulation(population.size(), population.getTour(0).size());
+
+        // Keep the best tour from the previous generation if elitism is enabled
+        int elitismOffset = elitism ? 1 : 0;
+        if (elitism) {
+            newPopulation.getTour(0) = population.getFittestTour();
+        }
+
+        // Crossover and mutate the rest of the population
+        for (int i = elitismOffset; i < population.size(); ++i) {
+            Tour& parent1 = tournamentSelection(population);
+            Tour& parent2 = tournamentSelection(population);
+
+            Tour child = crossover(parent1, parent2);
+            mutate(child);
+
+            newPopulation.getTour(i) = child;
+        }
+
+        population = newPopulation;
+    }
+};
+
+// Function to generate a random set of cities
+std::vector<City> generateCities(int numCities, int maxX, int maxY) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dist(0, std::max(maxX, maxY));
+
+    std::vector<City> cities;
+    cities.reserve(numCities);
+    for (int i = 0; i < numCities; ++i) {
+        cities.emplace_back(dist(gen), dist(gen));
+    }
+
+    return cities;
+}
+
+int main() {
+    std::cout << "Genetic Algorithm-Based Optimization\n";
+
+    int numCities;
+    int maxX, maxY;
+    int populationSize;
+    int numGenerations;
+    double mutationRate;
+    int tournamentSize;
+    bool elitism;
+
+    // Input parameters for the TSP
+    std::cout << "Enter the number of cities: ";
+    std::cin >> numCities;
+
+    std::cout << "Enter the maximum X coordinate: ";
+    std::cin >> maxX;
+
+    std::cout << "Enter the maximum Y coordinate: ";
+    std::cin >> maxY;
+
+    // Input parameters for the genetic algorithm
+    std::cout << "Enter the population size: ";
+    std::cin >> populationSize;
+
+    std::cout << "Enter the number of generations: ";
+    std::cin >> numGenerations;
+
+    std::cout << "Enter the mutation rate (0.0 - 1.0): ";
+    std::cin >> mutationRate;
+
+    std::cout << "Enter the tournament size: ";
+    std::cin >> tournamentSize;
+
+    std::cout << "Enable elitism? (0 - No, 1 - Yes): ";
+    std::cin >> elitism;
+
+    // Generate a random set of cities
+    std::vector<City> cities = generateCities(numCities, maxX, maxY);
+
+    // Create an initial population of tours
+    Population population(populationSize, numCities);
+    population.calculateFitness(cities);
+
+    // Create a genetic algorithm instance
+    GeneticAlgorithm ga(mutationRate, tournamentSize, elitism);
+
+    // Evolve the population for the specified number of generations
+    for (int i = 0; i < numGenerations; ++i) {
+        ga.evolvePopulation(population);
+        population.calculateFitness(cities);
+    }
+
+    // Print the best tour found
+    const Tour& bestTour = population.getFittestTour();
+    std::cout << "Best Tour Distance: " << 1.0 / bestTour.getFitness() << std::endl;
+    std::cout << "Best Tour: ";
+    for (int i = 0; i < bestTour.size(); ++i) {
+        std::cout << bestTour.getCity(i) << " ";
+    }
+    std::cout << std::endl;
+
+    return 0;
+}
