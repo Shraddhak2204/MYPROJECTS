@@ -1,0 +1,200 @@
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <random>
+#include <ctime>
+
+// Maze cell structure
+struct Cell {
+    int row;
+    int col;
+    bool visited;
+    bool wallTop;
+    bool wallBottom;
+    bool wallLeft;
+    bool wallRight;
+
+    Cell(int r, int c) : row(r), col(c), visited(false), wallTop(true), wallBottom(true), wallLeft(true), wallRight(true) {}
+};
+
+class Maze {
+private:
+    int rows;
+    int cols;
+    std::vector<Cell> cells;
+
+public:
+    Maze(int numRows, int numCols) : rows(numRows), cols(numCols) {
+        cells.reserve(rows * cols);
+
+        // Initialize cells
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                cells.emplace_back(r, c);
+            }
+        }
+    }
+
+    // Generate the maze using Prim's algorithm
+    void generateMaze() {
+        std::srand(std::time(nullptr));
+
+        // Randomly select a starting cell
+        int startRow = std::rand() % rows;
+        int startCol = std::rand() % cols;
+        Cell& startCell = cells[startRow * cols + startCol];
+        startCell.visited = true;
+
+        // Create a wall frontier to keep track of unvisited cells
+        std::vector<Cell*> frontier;
+        frontier.push_back(&startCell);
+
+        while (!frontier.empty()) {
+            // Randomly select a cell from the frontier
+            int randIndex = std::rand() % frontier.size();
+            Cell* currentCell = frontier[randIndex];
+            frontier.erase(frontier.begin() + randIndex);
+
+            // Check neighboring cells
+            std::vector<Cell*> neighbors;
+            if (currentCell->row > 0 && !cells[(currentCell->row - 1) * cols + currentCell->col].visited)
+                neighbors.push_back(&cells[(currentCell->row - 1) * cols + currentCell->col]); // Top
+            if (currentCell->row < rows - 1 && !cells[(currentCell->row + 1) * cols + currentCell->col].visited)
+                neighbors.push_back(&cells[(currentCell->row + 1) * cols + currentCell->col]); // Bottom
+            if (currentCell->col > 0 && !cells[currentCell->row * cols + (currentCell->col - 1)].visited)
+                neighbors.push_back(&cells[currentCell->row * cols + (currentCell->col - 1)]); // Left
+            if (currentCell->col < cols - 1 && !cells[currentCell->row * cols + (currentCell->col + 1)].visited)
+                neighbors.push_back(&cells[currentCell->row * cols + (currentCell->col + 1)]); // Right
+
+            if (!neighbors.empty()) {
+                // Randomly select a neighboring cell
+                int randNeighbor = std::rand() % neighbors.size();
+                Cell* neighborCell = neighbors[randNeighbor];
+                neighborCell->visited = true;
+
+                // Remove the wall between the current cell and the selected neighbor
+                if (neighborCell->row == currentCell->row - 1) {
+                    neighborCell->wallBottom = false;
+                    currentCell->wallTop = false;
+                } else if (neighborCell->row == currentCell->row + 1) {
+                    neighborCell->wallTop = false;
+                    currentCell->wallBottom = false;
+                } else if (neighborCell->col == currentCell->col - 1) {
+                    neighborCell->wallRight = false;
+                    currentCell->wallLeft = false;
+                } else if (neighborCell->col == currentCell->col + 1) {
+                    neighborCell->wallLeft = false;
+                    currentCell->wallRight = false;
+                }
+
+                frontier.push_back(neighborCell);
+            }
+        }
+    }
+
+    // Solve the maze using breadth-first search algorithm
+    std::vector<Cell*> solveMaze() {
+        std::queue<Cell*> q;
+        Cell* startCell = &cells[0];
+        Cell* goalCell = &cells[rows * cols - 1];
+        std::vector<Cell*> path;
+
+        q.push(startCell);
+
+        while (!q.empty()) {
+            Cell* currentCell = q.front();
+            q.pop();
+
+            if (currentCell == goalCell) {
+                // Trace back the path
+                while (currentCell != nullptr) {
+                    path.push_back(currentCell);
+                    currentCell = currentCell->parent;
+                }
+                break;
+            }
+
+            // Check neighboring cells
+            std::vector<Cell*> neighbors;
+            if (!currentCell->wallTop && currentCell->row > 0)
+                neighbors.push_back(&cells[(currentCell->row - 1) * cols + currentCell->col]); // Top
+            if (!currentCell->wallBottom && currentCell->row < rows - 1)
+                neighbors.push_back(&cells[(currentCell->row + 1) * cols + currentCell->col]); // Bottom
+            if (!currentCell->wallLeft && currentCell->col > 0)
+                neighbors.push_back(&cells[currentCell->row * cols + (currentCell->col - 1)]); // Left
+            if (!currentCell->wallRight && currentCell->col < cols - 1)
+                neighbors.push_back(&cells[currentCell->row * cols + (currentCell->col + 1)]); // Right
+
+            for (Cell* neighborCell : neighbors) {
+                if (!neighborCell->visited) {
+                    neighborCell->visited = true;
+                    neighborCell->parent = currentCell;
+                    q.push(neighborCell);
+                }
+            }
+        }
+
+        return path;
+    }
+
+    // Print the maze
+    void printMaze() {
+        for (int r = 0; r < rows; ++r) {
+            // Print top walls
+            for (int c = 0; c < cols; ++c) {
+                std::cout << "+";
+                if (cells[r * cols + c].wallTop)
+                    std::cout << "-";
+                else
+                    std::cout << " ";
+            }
+            std::cout << "+\n";
+
+            // Print left walls and spaces
+            for (int c = 0; c < cols; ++c) {
+                if (cells[r * cols + c].wallLeft)
+                    std::cout << "|";
+                else
+                    std::cout << " ";
+                std::cout << " ";
+            }
+            std::cout << "|\n";
+        }
+
+        // Print bottom walls
+        for (int c = 0; c < cols; ++c) {
+            std::cout << "+-";
+        }
+        std::cout << "+\n";
+    }
+};
+
+int main() {
+    int numRows, numCols;
+
+    std::cout << "Maze Generator and Solver\n";
+    std::cout << "Enter the number of rows: ";
+    std::cin >> numRows;
+    std::cout << "Enter the number of columns: ";
+    std::cin >> numCols;
+
+    Maze maze(numRows, numCols);
+
+    // Generate the maze
+    maze.generateMaze();
+
+    // Print the maze
+    maze.printMaze();
+
+    // Solve the maze
+    std::vector<Cell*> path = maze.solveMaze();
+
+    // Print the solution path
+    std::cout << "Solution Path:\n";
+    for (int i = path.size() - 1; i >= 0; --i) {
+        std::cout << "(" << path[i]->row << ", " << path[i]->col << ") ";
+    }
+    std::cout << "\n";
+
+    return 0;
+}
