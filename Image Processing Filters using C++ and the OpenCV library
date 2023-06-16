@@ -1,0 +1,102 @@
+#include <iostream>
+#include <string>
+#include <opencv2/opencv.hpp>
+
+// Function to convert an image to grayscale
+cv::Mat convertToGrayscale(const cv::Mat& image) {
+    cv::Mat grayscaleImage;
+    cvtColor(image, grayscaleImage, cv::COLOR_BGR2GRAY);
+    return grayscaleImage;
+}
+
+// Function to apply a blur filter to an image
+cv::Mat applyBlur(const cv::Mat& image, int kernelSize) {
+    cv::Mat blurredImage;
+    cv::blur(image, blurredImage, cv::Size(kernelSize, kernelSize));
+    return blurredImage;
+}
+
+// Function to apply an edge detection filter to an image
+cv::Mat applyEdgeDetection(const cv::Mat& image) {
+    cv::Mat edges;
+    cv::Canny(image, edges, 100, 200);
+    return edges;
+}
+
+// Function to adjust the brightness of an image
+cv::Mat adjustBrightness(const cv::Mat& image, int brightness) {
+    cv::Mat adjustedImage;
+    image.convertTo(adjustedImage, -1, 1, brightness);
+    return adjustedImage;
+}
+
+int main() {
+    std::string imagePath;
+    int filterChoice;
+
+    std::cout << "Image Processing Filters\n";
+    std::cout << "Enter the path to the image: ";
+    std::cin >> imagePath;
+
+    // Load the image
+    cv::Mat image = cv::imread(imagePath);
+    if (image.empty()) {
+        std::cerr << "Unable to read the image file." << std::endl;
+        return 1;
+    }
+
+    std::cout << "Available Filters:\n";
+    std::cout << "1. Grayscale Conversion\n";
+    std::cout << "2. Blur\n";
+    std::cout << "3. Edge Detection\n";
+    std::cout << "4. Brightness Adjustment\n";
+    std::cout << "Enter the filter choice (1-4): ";
+    std::cin >> filterChoice;
+
+    cv::Mat filteredImage;
+
+    switch (filterChoice) {
+        case 1: {
+            // Grayscale Conversion
+            filteredImage = convertToGrayscale(image);
+            break;
+        }
+        case 2: {
+            // Blur
+            int kernelSize;
+            std::cout << "Enter the kernel size (odd value): ";
+            std::cin >> kernelSize;
+            filteredImage = applyBlur(image, kernelSize);
+            break;
+        }
+        case 3: {
+            // Edge Detection
+            filteredImage = applyEdgeDetection(image);
+            break;
+        }
+        case 4: {
+            // Brightness Adjustment
+            int brightness;
+            std::cout << "Enter the brightness value (-255 to 255): ";
+            std::cin >> brightness;
+            filteredImage = adjustBrightness(image, brightness);
+            break;
+        }
+        default: {
+            std::cerr << "Invalid filter choice." << std::endl;
+            return 1;
+        }
+    }
+
+    // Display the original and filtered images
+    cv::namedWindow("Original Image", cv::WINDOW_NORMAL);
+    cv::imshow("Original Image", image);
+
+    cv::namedWindow("Filtered Image", cv::WINDOW_NORMAL);
+    cv::imshow("Filtered Image", filteredImage);
+
+    cv::waitKey(0);
+    cv::destroyAllWindows();
+
+    return 0;
+}
