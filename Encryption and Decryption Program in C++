@@ -1,0 +1,117 @@
+#include <iostream>
+#include <string>
+
+// Function to encrypt a message using the Caesar cipher algorithm
+std::string caesarEncrypt(const std::string& message, int shift) {
+    std::string encryptedMessage = "";
+    for (char c : message) {
+        if (isalpha(c)) {
+            char base = isupper(c) ? 'A' : 'a';
+            char encryptedChar = ((c - base + shift) % 26) + base;
+            encryptedMessage += encryptedChar;
+        } else {
+            encryptedMessage += c;
+        }
+    }
+    return encryptedMessage;
+}
+
+// Function to decrypt a message using the Caesar cipher algorithm
+std::string caesarDecrypt(const std::string& message, int shift) {
+    return caesarEncrypt(message, 26 - shift);
+}
+
+// Function to encrypt a message using the Vigenère cipher algorithm
+std::string vigenereEncrypt(const std::string& message, const std::string& keyword) {
+    std::string encryptedMessage = "";
+    int keywordLength = keyword.length();
+    int j = 0; // Index to iterate over the keyword
+
+    for (char c : message) {
+        if (isalpha(c)) {
+            char base = isupper(c) ? 'A' : 'a';
+            char encryptedChar = ((c - base + (keyword[j % keywordLength] - base)) % 26) + base;
+            encryptedMessage += encryptedChar;
+            j++;
+        } else {
+            encryptedMessage += c;
+        }
+    }
+    return encryptedMessage;
+}
+
+// Function to decrypt a message using the Vigenère cipher algorithm
+std::string vigenereDecrypt(const std::string& message, const std::string& keyword) {
+    std::string decryptedMessage = "";
+    int keywordLength = keyword.length();
+    int j = 0; // Index to iterate over the keyword
+
+    for (char c : message) {
+        if (isalpha(c)) {
+            char base = isupper(c) ? 'A' : 'a';
+            char decryptedChar = ((c - base - (keyword[j % keywordLength] - base) + 26) % 26) + base;
+            decryptedMessage += decryptedChar;
+            j++;
+        } else {
+            decryptedMessage += c;
+        }
+    }
+    return decryptedMessage;
+}
+
+int main() {
+    std::string plaintext;
+    std::string ciphertext;
+    std::string keyword;
+    int shift;
+
+    int choice;
+    std::cout << "Encryption and Decryption Program\n";
+    std::cout << "1. Caesar Cipher\n";
+    std::cout << "2. Vigenere Cipher\n";
+    std::cout << "Enter your choice (1 or 2): ";
+    std::cin >> choice;
+
+    std::cin.ignore(); // Ignore the newline character in the input buffer
+
+    switch (choice) {
+        case 1: {
+            // Caesar Cipher
+            std::cout << "\nCaesar Cipher\n";
+            std::cout << "Enter the plaintext: ";
+            std::getline(std::cin, plaintext);
+            std::cout << "Enter the shift value: ";
+            std::cin >> shift;
+
+            ciphertext = caesarEncrypt(plaintext, shift);
+            std::cout << "\nCiphertext: " << ciphertext << "\n";
+
+            std::string decryptedText = caesarDecrypt(ciphertext, shift);
+            std::cout << "Decrypted Text: " << decryptedText << "\n";
+
+            break;
+        }
+        case 2: {
+            // Vigenère Cipher
+            std::cout << "\nVigenere Cipher\n";
+            std::cout << "Enter the plaintext: ";
+            std::getline(std::cin, plaintext);
+            std::cout << "Enter the keyword: ";
+            std::getline(std::cin, keyword);
+
+            ciphertext = vigenereEncrypt(plaintext, keyword);
+            std::cout << "\nCiphertext: " << ciphertext << "\n";
+
+            std::string decryptedText = vigenereDecrypt(ciphertext, keyword);
+            std::cout << "Decrypted Text: " << decryptedText << "\n";
+
+            break;
+        }
+        default: {
+            std::cout << "Invalid choice! Please try again.\n";
+            break;
+        }
+    }
+
+    return 0;
+}
